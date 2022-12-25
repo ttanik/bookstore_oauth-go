@@ -102,7 +102,9 @@ func getAccessToken(accessTokenId string) (*accessToken, *errors.RestErr) {
 	}
 
 	if response.StatusCode > 299 {
-
+		if response.StatusCode == http.StatusNotFound {
+			return nil, errors.NewNotFoundError("not found")
+		}
 		return nil, errors.NewInternalServerError("invalid error interface when trying to get access token")
 
 	}
