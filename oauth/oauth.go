@@ -3,30 +3,22 @@ package oauth
 import (
 	"encoding/json"
 	"errors"
+	"io"
 
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
-	"github.com/mercadolibre/golang-restclient/rest"
 	"github.com/ttanik/bookstore_utils-go/rest_errors"
 )
 
 const (
-	headerXPublic   = "X-Public"
-	headerXClientId = "X-Client-Id"
-	headerXCallerId = "X-Caller-Id"
-
+	headerXPublic    = "X-Public"
+	headerXClientId  = "X-Client-Id"
+	headerXCallerId  = "X-Caller-Id"
+	baseURL          = "http://localhost:8080"
 	paramAccessToken = "access_token"
-)
-
-var (
-	oauthRestClient = rest.RequestBuilder{
-		BaseURL: "http://localhost:8080",
-		Timeout: 200 * time.Millisecond,
-	}
 )
 
 type accessToken struct {
@@ -97,8 +89,11 @@ func cleanRequest(request *http.Request) {
 }
 
 func getAccessToken(accessTokenId string) (*accessToken, rest_errors.RestErr) {
-	response := oauthRestClient.Get(fmt.Sprintf("/oauth/access_token/%s", accessTokenId))
-	if response == nil || response.Response == nil {
+	response, err := http.Get(baseURL + fmt.Sprintf("/oauth/access_token/%s", accessTokenId))
+	if err != nil {
+		return nil, rest_errors.NewInternalServerError("error when trying to create request ", errors.New("http client error"))
+	}
+	if response == nil || response.Body == nil {
 		return nil, rest_errors.NewInternalServerError("invalid restclient response when trying to get access token", errors.New("request error"))
 	}
 
@@ -109,9 +104,14 @@ func getAccessToken(accessTokenId string) (*accessToken, rest_errors.RestErr) {
 		return nil, rest_errors.NewInternalServerError("invalid error interface when trying to get access token", errors.New("not found error"))
 
 	}
+	bytes, err := io.ReadAll(response.Body)
+	if err != nil {
+		return nil, rest_errors.NewInternalServerError("invalid response", errors.New("http client error"))
+	}
 
+	defer response.Body.Close()
 	var at accessToken
-	if err := json.Unmarshal(response.Bytes(), &at); err != nil {
+	if err := json.Unmarshal(bytes, &at); err != nil {
 		return nil, rest_errors.NewInternalServerError("error when trying to unmarshal access token response", errors.New("json format error"))
 	}
 	return &at, nil
