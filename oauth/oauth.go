@@ -21,6 +21,17 @@ const (
 	paramAccessToken = "access_token"
 )
 
+var (
+	client ClientGet
+)
+
+func init() {
+	client = &http.Client{}
+}
+
+type ClientGet interface {
+	Get(string) (*http.Response, error)
+}
 type accessToken struct {
 	Id       string `json:"id"`
 	UserId   int64  `json:"user_id"`
@@ -89,7 +100,9 @@ func cleanRequest(request *http.Request) {
 }
 
 func getAccessToken(accessTokenId string) (*accessToken, rest_errors.RestErr) {
-	response, err := http.Get(baseURL + fmt.Sprintf("/oauth/access_token/%s", accessTokenId))
+	url := baseURL + fmt.Sprintf("/oauth/access_token/%s", accessTokenId)
+	response, err := client.Get(url)
+
 	if err != nil {
 		return nil, rest_errors.NewInternalServerError("error when trying to create request ", errors.New("http client error"))
 	}
